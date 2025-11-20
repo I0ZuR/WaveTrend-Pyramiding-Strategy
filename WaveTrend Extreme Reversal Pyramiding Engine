@@ -1,5 +1,5 @@
 //@version=5
-strategy("WaveTrend Pyramiding Strategy", overlay=false, pyramiding=50, margin_long=100, margin_short=100)
+strategy("WaveTrend Extreme Reversal Pyramiding Engine", overlay=false, pyramiding=50, margin_long=100, margin_short=100)
 
 // ** Parametri și calcul indicator WaveTrend (WT) **
 // Lungimi implicite pentru WT (pot fi modificate după nevoie)
