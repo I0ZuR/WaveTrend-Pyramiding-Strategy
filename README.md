@@ -1,4 +1,4 @@
-WaveTrend Pyramiding Strategy
+WaveTrend Extreme Reversal Pyramiding Engine Strategy
 
 This script implements a complete trading strategy based on the WaveTrend oscillator (LazyBear model), combined with automatic pyramiding, trend-reversal exits, and a full state-tracking system for multi-layered positions.
 
