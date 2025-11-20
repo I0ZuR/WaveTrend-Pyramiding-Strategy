@@ -1,4 +1,4 @@
-WaveTrend Pyramiding Strategy – Description for GitHub
+WaveTrend Pyramiding Strategy – Description
 
 This script implements a full WaveTrend-based trading strategy with automatic pyramiding, trend-reversal exits, and position-switching logic.
 It is designed for users who want a structured, rules-based system built around the classic LazyBear WaveTrend oscillator.
