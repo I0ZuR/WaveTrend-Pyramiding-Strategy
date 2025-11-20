@@ -1,67 +1,43 @@
-WaveTrend Pyramiding Strategy – Description
+WaveTrend Pyramiding Strategy
 
-This script implements a full WaveTrend-based trading strategy with automatic pyramiding, trend-reversal exits, and position-switching logic.
-It is designed for users who want a structured, rules-based system built around the classic LazyBear WaveTrend oscillator.
+This script implements a complete trading strategy based on the WaveTrend oscillator (LazyBear model), combined with automatic pyramiding, trend-reversal exits, and a full state-tracking system for multi-layered positions.
 
-Core Features
+Key Features:
 
-WaveTrend (WT1 & WT2) calculation using the standard ESA/CI/TCI model.
-
-Dynamic Long/Short detection based on overbought/oversold zones (+40 / -40) combined with WT1–WT2 crossovers.
-
+WaveTrend calculation (WT1 & WT2) using ESA, deviation, CI, and TCI formulas.
+Long/Short entries triggered only when price reaches overbought/oversold zones and WT1 crosses WT2.
 Automatic pyramiding:
+Adds Long layers only when price is below the previous entry.
+Adds Short layers only when price is above the previous entry.
 
-Adds to Long positions only below the previous entry price.
+Reversal logic:
 
-Adds to Short positions only above the previous entry price.
+Long → Short when WT1 confirmed overbought and crosses under WT2.
+Short → Long when WT1 confirmed oversold and crosses over WT2.
 
-Full position reversal logic:
+State tracking for:
 
-If a Long hits overbought and WT1 crosses below WT2 → reverse into Short.
+Current mode (neutral / long / short)
+Last entry price
+Number of layers added
+Overbought/oversold confirmations
 
-If a Short hits oversold and WT1 crosses above WT2 → reverse into Long.
+How the Strategy Works:
 
-State tracking system to keep control during multi-entry pyramiding:
+Long Entry: WT1 is below -40 and crosses above WT2.
+Short Entry: WT1 is above +40 and crosses under WT2.
+Pyramiding: Adds positions only if the new price improves the average entry.
+Exit + Reverse: When WT1 confirms an extreme + a WT1/WT2 cross in the opposite direction.
+All trades are managed through TradingView’s strategy.entry() and strategy.close() functions.
 
-Mode (Long / Short / Neutral)
+Purpose:
 
-Entry price per layer
+This strategy is designed for users who want a structured, rule-based system that captures extended market moves using WaveTrend momentum.
+It avoids noise signals, respects trend structure, and allows deeper position building under controlled conditions.
 
-Number of accumulated entries
+Ideal For:
 
-Overbought/Oversold confirmation flags
-
-How It Works
-
-Enters Long when WT1 is below -40 and crosses above WT2.
-
-Enters Short when WT1 is above +40 and crosses under WT2.
-
-Adds to the position only if the new price improves the average entry.
-
-Closes & reverses only after WT1 has confirmed an extreme (OB/OS) and a trend cross occurs.
-
-Uses built-in TradingView strategy.entry() and strategy.close() to manage full pyramiding up to 50 layers.
-
-Why This Strategy
-
-It avoids random scalping signals and waits for WT structure confirmation, not just a single crossover.
-By combining:
-
-momentum confirmation
-
-directional crossovers
-
-controlled pyramiding
-
-… the strategy focuses on capturing extended trend waves, not small noise moves.
-
-Intended Use
-
-Backtesting trend-based systems
-
-Studying WaveTrend structure
-
-Experimenting with pyramiding logic
-
-Creating custom WT-based automated strategies
+Backtesting trend systems
+Learning WaveTrend behavior
+Building custom WT-based strategies
+Exploring pyramiding logic in TradingView
