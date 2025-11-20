@@ -1,0 +1,128 @@
+//@version=5
+strategy("WaveTrend Pyramiding Strategy", overlay=false, pyramiding=50, margin_long=100, margin_short=100)
+
+// ** Parametri și calcul indicator WaveTrend (WT) **
+// Lungimi implicite pentru WT (pot fi modificate după nevoie)
+int   lengthChannel = 27    // n1: perioada pentru calculul ESA și deviere
+int   lengthAverage = 37    // n2: perioada pentru calculul TCI (WT1)
+int   signalLength  = 4     // perioada pentru medierea WT1 -> WT2
+float overboughtLvl =  40   // prag supracumpărare (+40)
+float oversoldLvl   = -40   // prag supravânzare (-40)
+
+// Calculăm oscillatorul WaveTrend (WT1 și WT2) conform formulei LazyBear:contentReference[oaicite:4]{index=4} 
+float ap = (high + low + close) / 3                // average price (hlc3)
+float esa = ta.ema(ap, lengthChannel)              // EMA pe ap (lungime n1)
+float de  = ta.ema(math.abs(ap - esa), lengthChannel)  // EMA pe deviația absolută (lungime n1)
+float ci  = (de == 0) ? 0 : (ap - esa) / (0.015 * de)   // index canal (evităm /0)
+float wt1 = ta.ema(ci, lengthAverage)              // TCI -> WT1 (EMA pe ci cu lungime n2)
+float wt2 = ta.sma(wt1, signalLength)              // WT2 = SMA pe WT1 (ex. 4 perioade)
+
+// Plotăm WT1, WT2 și nivelurile de supracumpărat/supravândut pentru vizualizare
+plot(wt1, color=color.lime, linewidth=2, title="WT1")
+plot(wt2, color=color.red, linewidth=1, title="WT2")
+hline(40, color=color.orange, linestyle=hline.style_dashed, title="Overbought +40")
+hline(-40, color=color.orange, linestyle=hline.style_dashed, title="Oversold -40")
+hline(0, color=color.gray, linestyle=hline.style_dotted)// linia zero (opțional)
+
+// ** Variabile persistente pentru starea strategiei **
+var int   mode                 = 0     // 0 = neutru (fără poziție activă), 1 = Long activ, -1 = Short activ
+var bool  hadOverBought        = false // flag: WT1 a depășit +40 într-o poziție Long activă
+var bool  hadOverSold          = false // flag: WT1 a scăzut sub -40 într-o poziție Short activă
+var float last_entry_price_long  = na  // ultimul preț de intrare pe Long (pentru pyramiding)
+var float last_entry_price_short = na  // ultimul preț de intrare pe Short
+var int   entry_count_long  = 0        // numărul de intrări Long active (pentru închidere completă)
+var int   entry_count_short = 0        // numărul de intrări Short active
+
+// Actualizăm flag-urile de depășire a pragurilor în funcție de poziția curentă
+if mode == 1 and wt1 > overboughtLvl
+    hadOverBought := true     // în pozitie Long, WT1 a trecut peste +40
+if mode == -1 and wt1 < oversoldLvl
+    hadOverSold := true       // în poziție Short, WT1 a trecut sub -40
+
+// ** Semnale de IEȘIRE (Reversare) **
+// Verificăm mai întâi condițiile de ieșire, pentru a închide poziția curentă la primul semnal opus valid.
+if mode == 1  // dacă avem poziție Long activă
+    // Condiție de închidere Long: WT1 a fost peste +40 și acum WT1 cross sub WT2 (revers bearish)
+    if hadOverBought and ta.crossunder(wt1, wt2)
+        // Închide toate pozițiile Long acumulate
+        strategy.close("Long")    // închide complet poziția Long activă (toate intrările)
+        // Resetăm starea după închidere
+        mode := 0
+        hadOverBought := false
+        hadOverSold   := false
+        entry_count_long  := 0
+        last_entry_price_long  := na
+        // Opțional: putem deschide imediat Short la semnalul de reversare
+        // (alternativ, lăsăm intrarea Short să fie preluată de logica de intrare de mai jos)
+        mode := -1
+        strategy.entry("Short", strategy.short, qty=1)  // intră Short inversând direcția
+        entry_count_short := 1
+        last_entry_price_short := close
+        hadOverSold := false   // resetăm flag-ul de oversold pentru noua poziție Short
+
+else if mode == -1  // dacă avem poziție Short activă
+    // Condiție de închidere Short: WT1 a fost sub -40 și acum WT1 cross peste WT2 (revers bullish)
+    if hadOverSold and ta.crossover(wt1, wt2)
+        // Închide toate pozițiile Short acumulate
+        strategy.close("Short")   // închide complet poziția Short activă
+        // Resetăm starea după închidere
+        mode := 0
+        hadOverSold   := false
+        hadOverBought := false
+        entry_count_short := 0
+        last_entry_price_short := na
+        // Opțional: deschidem imediat o poziție Long la semnalul de reversare
+        mode := 1
+        strategy.entry("Long", strategy.long, qty=1)   // intră Long inversând direcția
+        entry_count_long := 1
+        last_entry_price_long := close
+        hadOverBought := false  // resetăm flag-ul de overbought pentru noua poziție Long
+
+// ** Semnale de INTRARE și acumulare (pyramiding) **
+// Dacă nu s-a executat o ieșire (reversare) pe bara curentă, atunci evaluăm semnalele de intrare sau adăugare la poziție.
+
+if mode != 1  // Nu avem Long activ (suntem fie neutri, fie în Short)
+    // Semnal de intrare LONG: WT1 < -40 și WT1 cross peste WT2 (semnal bullish din zonă supravândută)
+    if wt1 < oversoldLvl and ta.crossover(wt1, wt2)
+        // Închidem eventuale poziții opuse înainte de a deschide una nouă (siguranță; ex: dacă eram pe Short)
+        if strategy.position_size < 0
+            strategy.close("Short")
+            entry_count_short := 0
+        // Deschide poziție Long nouă
+        strategy.entry("Long", strategy.long, qty=1)
+        mode := 1
+        entry_count_long := 1
+        last_entry_price_long := close
+        hadOverBought := false   // (re)inițializăm flag-ul de overbought pentru această poziție Long
+
+else  if mode == 1  // Deja avem o poziție Long activă
+    // Semnal de acumulare LONG: condiții Long active și prețul actual < ultimul preț de intrare (pentru pyramiding)
+    if wt1 < oversoldLvl and ta.crossover(wt1, wt2) and close < last_entry_price_long
+        // Adaugă la poziția Long
+        strategy.entry("Long", strategy.long, qty=1)
+        entry_count_long += 1
+        last_entry_price_long := close
+        // (flag-urile și mode rămân neschimbate în mod Long)
+
+if mode != -1  // Nu avem Short activ (suntem fie neutri, fie în Long)
+    // Semnal de intrare SHORT: WT1 > +40 și WT1 cross sub WT2 (semnal bearish din zonă supracumpărată)
+    if wt1 > overboughtLvl and ta.crossunder(wt1, wt2)
+        // Închide eventuale poziții opuse (dacă eram Long, deși logic ar fi fost deja închis la reversare)
+        if strategy.position_size > 0
+            strategy.close("Long")
+            entry_count_long := 0
+        // Deschide poziție Short nouă
+        strategy.entry("Short", strategy.short, qty=1)
+        mode := -1
+        entry_count_short := 1
+        last_entry_price_short := close
+        hadOverSold := false   // inițializăm flag-ul de oversold pentru noua poziție Short
+
+else if mode == -1  // Deja avem o poziție Short activă
+    // Semnal de acumulare SHORT: condiții Short active și prețul actual > ultimul preț de intrare (pyramiding)
+    if wt1 > overboughtLvl and ta.crossunder(wt1, wt2) and close > last_entry_price_short
+        // Adaugă la poziția Short
+        strategy.entry("Short", strategy.short, qty=1)
+        entry_count_short += 1
+        last_entry_price_short := close
+        // (mode și flag-urile rămân neschimbate în mod Short)
